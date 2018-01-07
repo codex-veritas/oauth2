@@ -1,73 +1,74 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
-
-	"github.com/RangelReale/osin"
 )
 
 func main() {
 	l := log.New(os.Stdout, "MAIN  ", log.LstdFlags|log.Lshortfile)
 
-	cfg := osin.NewServerConfig()
-	cfg.AllowGetAccessRequest = true
-	cfg.AllowClientSecretInParams = true
+	oauth := &server{}
 
-	server := osin.NewServer(cfg, NewTestStorage())
-
-	// Authorization code endpoint
-	http.HandleFunc("/authorize", func(w http.ResponseWriter, r *http.Request) {
-		resp := server.NewResponse()
-		defer resp.Close()
-
-		if ar := server.HandleAuthorizeRequest(resp, r); ar != nil {
-			if !HandleLoginPage(ar, w, r) {
-				return
-			}
-			ar.Authorized = true
-			server.FinishAuthorizeRequest(resp, r, ar)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/authorize", func(w http.ResponseWriter, r *http.Request) {
+		err := r.ParseForm()
+		if err != nil {
+			l.Println("fail to parse form:", err)
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
 		}
-		if resp.IsError && resp.InternalError != nil {
-			fmt.Printf("ERROR: %s\n", resp.InternalError)
+
+		param := authorizeParam{}
+		param.ResponseType = r.Form.Get("response_type")
+		if param.ResponseType == "" {
+			http.Error(w, "missing parameter: response_type", http.StatusBadRequest)
+			return
 		}
-		osin.OutputJSON(resp, w, r)
+		param.ClientID = r.Form.Get("client_id")
+		if param.ClientID == "" {
+			http.Error(w, "missing parameter: client_id", http.StatusBadRequest)
+			return
+		}
+		param.RedirectURI = r.Form.Get("redirect_uri")
+		if param.RedirectURI == "" {
+			http.Error(w, "missing parameter: redirect_uri", http.StatusBadRequest)
+			return
+		}
+		param.Scope = r.Form.Get("scope")
+		if param.Scope == "" {
+			http.Error(w, "missing parameter: scope", http.StatusBadRequest)
+			return
+		}
+		param.State = r.Form.Get("state")
+		if param.State == "" {
+			http.Error(w, "missing parameter: state", http.StatusBadRequest)
+			return
+		}
+
+		uri, err := oauth.Authorize(param)
+
+		if _, ok := err.(errNotImplemented); ok {
+			http.Error(w, err.Error(), http.StatusNotImplemented)
+			return
+		}
+		if err != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("location", uri)
+		w.WriteHeader(http.StatusFound)
 	})
 
-	// Access token endpoint
-	http.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
-		resp := server.NewResponse()
-		defer resp.Close()
-
-		if ar := server.HandleAccessRequest(resp, r); ar != nil {
-			ar.Authorized = true
-			server.FinishAccessRequest(resp, r, ar)
-		}
-		if resp.IsError && resp.InternalError != nil {
-			fmt.Printf("ERROR: %s\n", resp.InternalError)
-		}
-		osin.OutputJSON(resp, w, r)
+	mux.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
+		// Token are only use for server app
 	})
 
-	// Information endpoint
-	http.HandleFunc("/info", func(w http.ResponseWriter, r *http.Request) {
-		resp := server.NewResponse()
-		defer resp.Close()
-
-		if ir := server.HandleInfoRequest(resp, r); ir != nil {
-			server.FinishInfoRequest(resp, r, ir)
-		}
-		osin.OutputJSON(resp, w, r)
-	})
-
-	// Application home endpoint
-	http.HandleFunc("/app", handleAppHome)
-
-	// Application destination - CODE
-	http.HandleFunc("/appauth/code", handleAppAuth)
-
+	srv := &http.Server{
+		Addr:    ":8080",
+		Handler: mux,
+	}
 	l.Println("listening on :8080")
-	l.Fatal(http.ListenAndServe(":8080", nil))
+	l.Fatal(srv.ListenAndServe())
 }
