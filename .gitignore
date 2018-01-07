@@ -15,4 +15,5 @@
 
 vendor/
 cmd/cli/cli
-cmd/srv/srv
+cmd/api/api
+cmd/auth/auth
