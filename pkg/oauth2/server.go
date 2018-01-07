@@ -23,11 +23,12 @@ type AuthorizeParam struct {
 
 // AuthorizeResponse contains the fields return to the client after an authorized request.
 type AuthorizeResponse struct {
+	State            string `json:"state"`
 	AccessToken      string `json:"access_token,omitempty"`
 	TokenType        string `json:"token_type,omitempty"`
 	ExpiresIn        int    `json:"expires_in,omitempty"`
 	Error            int    `json:"error,omitempty"`
-	ErrorDescription int    `json:"error_description,omitempty"`
+	ErrorDescription string `json:"error_description,omitempty"`
 }
 
 // AsFragment returns the AuthorizeResponse as an URL fragment.
@@ -35,6 +36,11 @@ func (r AuthorizeResponse) AsFragment() string {
 	str := "access_token=" + r.AccessToken
 	str += "&token_type=" + r.TokenType
 	str += "&expires_id=" + strconv.Itoa(r.ExpiresIn)
+	if r.Error != 0 {
+		str = "error=" + strconv.Itoa(r.Error)
+		str += "&error_description=" + r.ErrorDescription
+	}
+	str += "&state=" + r.State
 	return str
 }
 
@@ -47,6 +53,7 @@ func (s *Server) Authorize(param AuthorizeParam) (url string, err error) {
 		return "", ErrNotImplemented("support only response_type=token")
 	}
 	r := AuthorizeResponse{
+		State:       param.State,
 		AccessToken: "qwertyuiop",
 		TokenType:   "Bearer",
 		ExpiresIn:   3600,
