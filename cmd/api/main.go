@@ -4,7 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"github.com/codex-veritas/oauth2/pkg/jwt"
 )
+
+var secret = "secret"
 
 func main() {
 	fmt.Println("-- API server --")
@@ -25,6 +29,19 @@ type dog struct {
 }
 
 func getDogs(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("Token")
+	payload, err := jwt.Decode(token, secret)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte("cannot decode JWT"))
+		return
+	}
+
+	user := payload.UserName
+	fmt.Println("User:", user)
+	// Retrieve dogs only for the given user
+
+	// TODO filter dogs
 	dogs := []dog{
 		dog{"Snoopy", "Border colley", "blue"},
 		dog{"James", "Terrier", "black"},
@@ -33,7 +50,7 @@ func getDogs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	e := json.NewEncoder(w)
-	err := e.Encode(dogs)
+	err = e.Encode(dogs)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Woof woof..."))
