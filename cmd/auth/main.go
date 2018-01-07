@@ -4,12 +4,14 @@ import (
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/codex-veritas/oauth2/pkg/oauth2"
 )
 
 func main() {
 	l := log.New(os.Stdout, "MAIN  ", log.LstdFlags|log.Lshortfile)
 
-	oauth := &server{}
+	oauthServer := &oauth2.Server{}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/authorize", func(w http.ResponseWriter, r *http.Request) {
@@ -20,7 +22,7 @@ func main() {
 			return
 		}
 
-		param := authorizeParam{}
+		param := oauth2.AuthorizeParam{}
 		param.ResponseType = r.Form.Get("response_type")
 		if param.ResponseType == "" {
 			http.Error(w, "missing parameter: response_type", http.StatusBadRequest)
@@ -47,9 +49,9 @@ func main() {
 			return
 		}
 
-		uri, err := oauth.Authorize(param)
+		uri, err := oauthServer.Authorize(param)
 
-		if _, ok := err.(errNotImplemented); ok {
+		if _, ok := err.(oauth2.ErrNotImplemented); ok {
 			http.Error(w, err.Error(), http.StatusNotImplemented)
 			return
 		}
