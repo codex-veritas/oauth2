@@ -32,14 +32,15 @@ func getDogs(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("Token")
 	payload, err := jwt.Decode(token, secret)
 	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte("cannot decode JWT"))
+		http.Error(w, "cannot decode JWT", http.StatusUnauthorized)
 		return
 	}
 
 	user := payload.UserName
 	fmt.Println("User:", user)
 	// Retrieve dogs only for the given user
+
+	// Is the user allowed to execute this method?
 
 	// TODO filter dogs
 	dogs := []dog{

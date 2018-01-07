@@ -17,6 +17,6 @@
 *.swp
 
 vendor/
-cmd/cli/cli
+cmd/app/app
 cmd/api/api
 cmd/auth/auth
