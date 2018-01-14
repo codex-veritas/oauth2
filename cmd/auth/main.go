@@ -4,11 +4,21 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/codex-veritas/oauth2/pkg/oauth2"
+	"github.com/jessevdk/go-flags"
 )
 
+type options struct {
+	Bind string `long:"bind" default:"0.0.0.0" description:"address of the server"`
+	Port int    `long:"port" default:"8080" description:"port of the server"`
+}
+
 func main() {
+	opts := options{}
+	flags.ParseArgs(&opts, os.Args)
+
 	l := log.New(os.Stdout, "MAIN  ", log.LstdFlags|log.Lshortfile)
 
 	oauthServer := &oauth2.Server{}
@@ -67,10 +77,11 @@ func main() {
 		// Token are only use for server app
 	})
 
+	addr := opts.Bind + ":" + strconv.Itoa(opts.Port)
 	srv := &http.Server{
-		Addr:    ":8080",
+		Addr:    addr,
 		Handler: mux,
 	}
-	l.Println("listening on :8080")
+	l.Printf("listening on %v...", addr)
 	l.Fatal(srv.ListenAndServe())
 }
